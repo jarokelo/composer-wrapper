@@ -1,0 +1,36 @@
+#!/bin/sh
+
+outdated=false
+
+# Absolute path to this script, e.g. /home/user/bin/foo.sh
+script=$(readlink -f "$0")
+# Absolute path this script is in, thus /home/user/bin
+scriptpath=$(dirname "$script")
+
+real="php -c \"$scriptpath/php.ini\" \"$scriptpath/composer\""
+# show does not support --no-plugins, so if it crashes, it means the plugin is installed, but incompatible
+out=$(eval "$real" global show -i 2>/dev/null)
+if [ $? -ne 0 ]; then
+    outdated=true
+fi
+
+if ! $outdated; then
+    version=$(echo "$out" | grep 'fxp/composer-asset-plugin' | tr -s ' ' | cut -d' ' -f2)
+
+    version=${version#v}
+    major=${version%%.*}
+    minorpatch=${version#*.}
+    minor=${minorpatch%%.*}
+    # patch=${minorpatch#*.}
+
+    if [ "$major" = "1" ] && ([ "$minor" = "0" ] || [ "$minor" = "1" ] && ([ "$patch" = "0" ] || [ "$patch" = "1" ] || [ "$patch" = "2" ] )); then
+        outdated=true
+    fi
+
+fi
+
+if $outdated; then
+    eval "$real" --no-plugins global require "fxp/composer-asset-plugin:~1.1.3"
+fi
+
+eval "$real" "$@"
